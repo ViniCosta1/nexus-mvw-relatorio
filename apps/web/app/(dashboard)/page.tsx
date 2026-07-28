@@ -1,10 +1,20 @@
 import { KpiCard } from "@/components/dashboard/kpi-card"
+import { InsightsPanel } from "@/components/dashboard/insights-panel"
 import { formatCurrencyBRL, formatRoas } from "@/lib/format"
-import { getDefaultDateRange, getKpiSummary } from "@/lib/queries/overview"
+import { buildInsights } from "@/lib/insights"
+import { getDefaultDateRange, getKpiSummary, getCampaignRanking } from "@/lib/queries/overview"
 
 export default async function VisaoGeralPage() {
   const range = getDefaultDateRange()
-  const kpis = await getKpiSummary(range)
+  const [kpis, campaigns] = await Promise.all([getKpiSummary(range), getCampaignRanking(range)])
+
+  const insights = buildInsights({
+    campaigns: campaigns.map((c) => ({ campaignId: c.campaignId, name: c.name, spend: c.spend, revenue: c.revenue })),
+    unattributedRevenue: kpis.unattributedRevenue,
+    totalRevenue: kpis.totalRevenue,
+    currentPeriodRevenue: kpis.currentPeriodRevenue,
+    previousPeriodRevenue: kpis.previousPeriodRevenue,
+  })
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,6 +31,7 @@ export default async function VisaoGeralPage() {
         <KpiCard title="Ticket médio" value={formatCurrencyBRL(kpis.avgTicket)} />
         <KpiCard title="Vendas" value={String(kpis.salesCount)} />
       </div>
+      <InsightsPanel insights={insights} />
     </div>
   )
 }
