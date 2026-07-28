@@ -47,6 +47,13 @@ function pick<T>(arr: readonly T[]): T {
 }
 
 async function main() {
+  if (process.env.ALLOW_DESTRUCTIVE_SEED !== "1") {
+    throw new Error(
+      "Refusing to run seed: this script wipes sale, campaignInsightDaily, syncRun and campaign tables. " +
+        "Set ALLOW_DESTRUCTIVE_SEED=1 to confirm you want to run it (use `bun run db:seed`, which sets this for you).",
+    )
+  }
+
   await prisma.sale.deleteMany()
   await prisma.campaignInsightDaily.deleteMany()
   await prisma.syncRun.deleteMany()
