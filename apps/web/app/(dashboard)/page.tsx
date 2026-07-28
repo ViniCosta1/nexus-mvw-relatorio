@@ -2,7 +2,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card"
 import { InsightsPanel } from "@/components/dashboard/insights-panel"
 import { SpendVsSalesChart } from "@/components/dashboard/spend-vs-sales-chart"
 import { CampaignRankingTable, SellerRankingTable } from "@/components/dashboard/ranking-table"
-import { formatCurrencyBRL, formatRoas } from "@/lib/format"
+import { formatCurrencyBRL, formatDateLongBR, formatRoas } from "@/lib/format"
 import { buildInsights } from "@/lib/insights"
 import { getDefaultDateRange, getKpiSummary, getCampaignRanking, getSpendVsSalesSeries, getSellerRanking } from "@/lib/queries/overview"
 
@@ -28,7 +28,7 @@ export default async function VisaoGeralPage() {
       <div>
         <h1 className="text-xl font-semibold">Visão Geral</h1>
         <p className="text-muted-foreground text-sm">
-          Últimos 30 dias · {range.from.toLocaleDateString("pt-BR")} – {range.to.toLocaleDateString("pt-BR")}
+          Últimos 30 dias · {formatDateLongBR(range.from)} – {formatDateLongBR(range.to)}
         </p>
       </div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
