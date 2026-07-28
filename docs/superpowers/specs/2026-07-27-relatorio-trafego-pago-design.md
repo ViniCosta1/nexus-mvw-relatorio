@@ -20,11 +20,16 @@ suporte multi-cliente/multi-conta nesta versão.
 Tudo dentro do monorepo Next.js atual (`apps/web`), sem serviço externo
 separado:
 
-- **Next.js API routes** fazem a sincronização (Meta Graph API + Google
-  Sheets API) e gravam num banco Postgres.
-- **Vercel Cron** dispara sync a cada 15 minutos.
-- **Botão manual "Atualizar agora"** no dashboard chama a mesma rota de
-  sync sob demanda (mesma lógica, gatilho diferente).
+- **Next.js API routes** fazem a sincronização — vendas via Google Sheets
+  API (nosso código chama direto) e campanhas Meta via **webhook
+  recebido de um cenário no Make.com** (não chamamos a Graph API
+  diretamente, ver seção Integrações) — e gravam num banco Postgres.
+- **Vercel Cron** dispara sync de Sheets a cada 15 minutos; o cron do
+  cenário no Make dispara o envio dos dados de Meta no mesmo intervalo.
+- **Botão manual "Atualizar agora"** no dashboard dispara a sincronização
+  de Sheets sob demanda (mesma lógica, gatilho diferente); para forçar
+  dado novo de Meta fora do horário, é preciso rodar o cenário manualmente
+  no Make (fora do nosso sistema).
 - **Postgres (Neon, serverless)** via **Prisma** como storage/histórico.
   Dashboard lê do Postgres — nunca chama Meta/Sheets diretamente na
   renderização.
@@ -103,14 +108,27 @@ pausada).
 
 ## Integrações
 
-**Meta Ads (Graph API / Marketing API)**
+**Meta Ads (via Make.com, não Graph API direta)**
+- Motivo da mudança: gerar token de acesso via App próprio exigiu vincular
+  o app a um Portfólio Empresarial e depois travou em verificação de
+  celular no Business Manager — bloqueio de conta, não contornável por
+  fora. Make.com evita esse caminho: autentica a conta de anúncio via
+  login OAuth do Facebook (app já revisado pela Meta), sem precisar criar
+  App próprio nem System User.
+- Um **cenário no Make** roda no horário definido (alinhado ao intervalo
+  de 15 min do cron), busca Insights das campanhas na Meta, e envia o
+  resultado via **webhook HTTP** para uma rota da nossa aplicação
+  (`POST /api/sync/meta/webhook`), autenticada por segredo compartilhado.
 - Nível de dado: **campanha** (não desce a conjunto de anúncios ou anúncio
   individual nesta versão).
 - Métricas: spend, impressions, clicks, reach, ctr, cpc, cpm — por
-  campanha, por dia (`CampaignInsightDaily`).
-- Autenticação: token de acesso System User com permissão `ads_read`,
-  App ID/Secret. **Pendente do usuário**: App ID, App Secret, token,
-  ID da conta de anúncio.
+  campanha, por dia (`CampaignInsightDaily`). O formato exato do payload
+  do webhook é definido ao montar o cenário no Make (mapeado para essas
+  mesmas colunas).
+- Nossa aplicação **não chama a Graph API diretamente** — só recebe e
+  valida o payload do webhook e grava no Postgres. **Pendente do
+  usuário**: conta Make conectada à Meta (login OAuth dentro do Make) e
+  um segredo de webhook (`META_WEBHOOK_SECRET`).
 
 **Google Sheets**
 - Leitura **live via API** (não upload manual), usando `googleapis` +
@@ -171,7 +189,7 @@ tema neutro atual), suportando light/dark.
 
 ## Pendências do usuário (bloqueiam implementação real, não o plano)
 
-- Meta: App ID, App Secret, token de acesso System User (`ads_read`), ID
-  da conta de anúncio
+- Meta: conta Make.com conectada à conta de anúncio (login OAuth),
+  cenário de coleta configurado, segredo de webhook definido
 - Google Sheets: ID da planilha, e planilha de exemplo com colunas reais
   (a estrutura assumida acima pode mudar)
