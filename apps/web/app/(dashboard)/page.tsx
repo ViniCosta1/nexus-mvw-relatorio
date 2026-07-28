@@ -1,16 +1,18 @@
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { InsightsPanel } from "@/components/dashboard/insights-panel"
 import { SpendVsSalesChart } from "@/components/dashboard/spend-vs-sales-chart"
+import { CampaignRankingTable, SellerRankingTable } from "@/components/dashboard/ranking-table"
 import { formatCurrencyBRL, formatRoas } from "@/lib/format"
 import { buildInsights } from "@/lib/insights"
-import { getDefaultDateRange, getKpiSummary, getCampaignRanking, getSpendVsSalesSeries } from "@/lib/queries/overview"
+import { getDefaultDateRange, getKpiSummary, getCampaignRanking, getSpendVsSalesSeries, getSellerRanking } from "@/lib/queries/overview"
 
 export default async function VisaoGeralPage() {
   const range = getDefaultDateRange()
-  const [kpis, campaigns, series] = await Promise.all([
+  const [kpis, campaigns, series, sellers] = await Promise.all([
     getKpiSummary(range),
     getCampaignRanking(range),
     getSpendVsSalesSeries(range),
+    getSellerRanking(range),
   ])
 
   const insights = buildInsights({
@@ -38,6 +40,10 @@ export default async function VisaoGeralPage() {
       </div>
       <InsightsPanel insights={insights} />
       <SpendVsSalesChart data={series} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CampaignRankingTable rows={campaigns} />
+        <SellerRankingTable rows={sellers} />
+      </div>
     </div>
   )
 }
