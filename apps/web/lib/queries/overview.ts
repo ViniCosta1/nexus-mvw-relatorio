@@ -13,7 +13,7 @@ export function getDefaultDateRange(days = 30): DateRange {
   return { from, to }
 }
 
-function previousPeriod(range: DateRange): DateRange {
+export function previousPeriod(range: DateRange): DateRange {
   const lengthMs = range.to.getTime() - range.from.getTime()
   const to = new Date(range.from.getTime() - 24 * 60 * 60 * 1000)
   const from = new Date(to.getTime() - lengthMs)
