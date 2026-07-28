@@ -41,7 +41,9 @@ const DAYS = 30
 const TOTAL_SALES = 150
 
 function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(rand() * arr.length)]
+  const item = arr[Math.floor(rand() * arr.length)]
+  if (item === undefined) throw new Error("pick: empty array")
+  return item
 }
 
 async function main() {
@@ -53,6 +55,7 @@ async function main() {
   const campaigns = []
   for (let i = 0; i < CAMPAIGNS.length; i++) {
     const c = CAMPAIGNS[i]
+    if (!c) throw new Error("campaign not found")
     const campaign = await prisma.campaign.create({
       data: {
         metaCampaignId: `12080000000${i}`,
