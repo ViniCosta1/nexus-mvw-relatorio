@@ -37,6 +37,7 @@ model CampaignInsightDaily {
   syncedAt    DateTime @default(now()) @map("synced_at")
 
   @@unique([campaignId, date])
+  @@index([date])
   @@map("campaign_insights_daily")
 }
 
@@ -60,6 +61,9 @@ model Sale {
   rawRow      Json      @map("raw_row")
   syncedAt    DateTime  @default(now()) @map("synced_at")
 
+  @@index([saleDate])
+  @@index([campaignId, saleDate])
+  @@index([sellerName])
   @@map("sales")
 }
 
