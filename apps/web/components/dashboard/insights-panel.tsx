@@ -4,8 +4,6 @@ import type { Insight } from "@/lib/insights"
 
 const TONE_STYLES: Record<Insight["tone"], string> = {
   positive: "border-l-4 border-l-primary",
-  warning: "border-l-4 border-l-destructive",
-  neutral: "border-l-4 border-l-border",
 }
 
 export function InsightsPanel({ insights }: { insights: Insight[] }) {

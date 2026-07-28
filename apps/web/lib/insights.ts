@@ -1,75 +1,79 @@
-export interface CampaignPerformance {
+/**
+ * All insights here are stated in positive/neutral terms only — no warnings, no
+ * "campaign underperformed" framing. Meta spend and Greenn sales are independent
+ * data streams (no UTM attribution), so nothing here implies a causal link
+ * between the two. The manager draws their own conclusions from the raw numbers
+ * shown elsewhere on the page; this panel only calls out clear positive facts.
+ */
+
+export interface CampaignEfficiency {
   campaignId: string
   name: string
-  spend: number
-  revenue: number
+  clicks: number
+  impressions: number
+  ctr: number
+  cpc: number
 }
 
 export interface Insight {
   id: string
-  tone: "positive" | "warning" | "neutral"
+  tone: "positive"
   message: string
 }
 
 export interface BuildInsightsInput {
-  campaigns: CampaignPerformance[]
-  unattributedRevenue: number
+  campaigns: CampaignEfficiency[]
   totalRevenue: number
+  salesCount: number
   currentPeriodRevenue: number
   previousPeriodRevenue: number
 }
 
-const HIGH_SPEND_SHARE_THRESHOLD = 0.25
-const LOW_RETURN_SHARE_RATIO = 0.5
-const UNATTRIBUTED_SHARE_THRESHOLD = 0.2
+const MIN_IMPRESSIONS_FOR_CTR_HIGHLIGHT = 100
+const MIN_CLICKS_FOR_CPC_HIGHLIGHT = 5
 
 export function buildInsights(input: BuildInsightsInput): Insight[] {
   const insights: Insight[] = []
-  const { campaigns, unattributedRevenue, totalRevenue, currentPeriodRevenue, previousPeriodRevenue } = input
+  const { campaigns, totalRevenue, salesCount, currentPeriodRevenue, previousPeriodRevenue } = input
 
-  const withRoas = campaigns
-    .filter((c) => c.spend > 0)
-    .map((c) => ({ ...c, roas: c.revenue / c.spend }))
-
-  if (withRoas.length > 0) {
-    const best = withRoas.reduce((a, b) => (b.roas > a.roas ? b : a))
+  const byCtr = campaigns
+    .filter((c) => c.impressions >= MIN_IMPRESSIONS_FOR_CTR_HIGHLIGHT)
+    .sort((a, b) => b.ctr - a.ctr)[0]
+  if (byCtr) {
     insights.push({
-      id: "best-roas",
+      id: "best-ctr",
       tone: "positive",
-      message: `"${best.name}" teve o melhor ROAS do período (${best.roas.toFixed(1)}x).`,
+      message: `"${byCtr.name}" teve o melhor CTR do período (${byCtr.ctr.toFixed(2)}%).`,
     })
   }
 
-  const totalSpend = campaigns.reduce((sum, c) => sum + c.spend, 0)
-  if (totalSpend > 0 && totalRevenue > 0) {
-    for (const c of campaigns) {
-      const spendShare = c.spend / totalSpend
-      const revenueShare = c.revenue / totalRevenue
-      if (spendShare >= HIGH_SPEND_SHARE_THRESHOLD && revenueShare < spendShare * LOW_RETURN_SHARE_RATIO) {
-        insights.push({
-          id: "low-return-high-spend",
-          tone: "warning",
-          message: `"${c.name}" consumiu ${(spendShare * 100).toFixed(0)}% do investimento mas gerou só ${(revenueShare * 100).toFixed(0)}% das vendas.`,
-        })
-        break
-      }
-    }
+  const byCpc = campaigns
+    .filter((c) => c.clicks >= MIN_CLICKS_FOR_CPC_HIGHLIGHT)
+    .sort((a, b) => a.cpc - b.cpc)[0]
+  if (byCpc && byCpc.campaignId !== byCtr?.campaignId) {
+    insights.push({
+      id: "best-cpc",
+      tone: "positive",
+      message: `"${byCpc.name}" teve o menor custo por clique do período (${byCpc.cpc.toFixed(2)} por clique).`,
+    })
   }
 
   if (previousPeriodRevenue > 0) {
     const change = ((currentPeriodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
-    insights.push({
-      id: "period-trend",
-      tone: change >= 0 ? "positive" : "warning",
-      message: `Faturamento ${change >= 0 ? "subiu" : "caiu"} ${Math.abs(change).toFixed(0)}% em relação ao período anterior.`,
-    })
+    if (change >= 0) {
+      insights.push({
+        id: "period-trend",
+        tone: "positive",
+        message: `Vendas de ingressos cresceram ${change.toFixed(0)}% em relação ao período anterior.`,
+      })
+    }
   }
 
-  if (totalRevenue > 0 && unattributedRevenue / totalRevenue >= UNATTRIBUTED_SHARE_THRESHOLD) {
+  if (salesCount > 0) {
     insights.push({
-      id: "unattributed-share",
-      tone: "warning",
-      message: `${((unattributedRevenue / totalRevenue) * 100).toFixed(0)}% das vendas do período não têm campanha de origem identificada.`,
+      id: "sales-summary",
+      tone: "positive",
+      message: `Foram vendidos ${salesCount} ingressos no período, totalizando ${totalRevenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
     })
   }
 

@@ -1,15 +1,33 @@
-import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google"
+import localFont from "next/font/local"
 
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@workspace/ui/lib/utils";
+import { cn } from "@workspace/ui/lib/utils"
 
-const fontSans = Geist({
-  subsets: ["latin"],
+const degular = localFont({
+  src: [
+    {
+      path: "../public/fonts/DegularDemo-Regular.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/DegularDemo-Bold.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-sans",
+  display: "swap",
 })
 
-const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'})
+const degularDisplay = localFont({
+  src: "../public/fonts/DegularDisplayDemo-Italic.otf",
+  weight: "400",
+  style: "italic",
+  variable: "--font-display",
+  display: "swap",
+})
 
 export default function RootLayout({
   children,
@@ -18,9 +36,14 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="pt-BR"
       suppressHydrationWarning
-      className={cn("antialiased", fontSans.variable, "font-mono", jetbrainsMono.variable)}
+      className={cn(
+        "antialiased",
+        degular.variable,
+        degularDisplay.variable,
+        "font-sans",
+      )}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>

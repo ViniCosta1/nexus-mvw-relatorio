@@ -23,15 +23,6 @@ function slugify(text: string) {
     .replace(/(^-|-$)/g, "")
 }
 
-const CAMPAIGNS = [
-  { name: "Lançamento Método X - Topo", objective: "OUTCOME_LEADS" },
-  { name: "Retargeting - Carrinho Abandonado", objective: "OUTCOME_SALES" },
-  { name: "Prospecção Lookalike 1%", objective: "OUTCOME_LEADS" },
-  { name: "Institucional - Reconhecimento", objective: "OUTCOME_AWARENESS" },
-  { name: "Webinar Gratuito - Captação", objective: "OUTCOME_LEADS" },
-  { name: "Black Friday - Conversão", objective: "OUTCOME_SALES" },
-] as const
-
 const PRODUCTS = ["Curso Método X", "Mentoria Individual", "Assinatura Anual", "Ebook Avançado"]
 const SELLERS = ["Ana Souza", "Bruno Lima", "Carla Mendes", "Diego Alves"]
 const FIRST_NAMES = ["Mariana", "João", "Fernanda", "Lucas", "Patrícia", "Rafael", "Camila", "Thiago", "Juliana", "Eduardo"]
@@ -49,66 +40,22 @@ function pick<T>(arr: readonly T[]): T {
 async function main() {
   if (process.env.ALLOW_DESTRUCTIVE_SEED !== "1") {
     throw new Error(
-      "Refusing to run seed: this script wipes sale, campaignInsightDaily, syncRun and campaign tables. " +
+      "Refusing to run seed: this script wipes mock sale rows (greenn-mock-*) and the SHEETS sync log. " +
         "Set ALLOW_DESTRUCTIVE_SEED=1 to confirm you want to run it (use `bun run db:seed`, which sets this for you).",
     )
   }
 
-  await prisma.sale.deleteMany()
-  await prisma.campaignInsightDaily.deleteMany()
-  await prisma.syncRun.deleteMany()
-  await prisma.campaign.deleteMany()
+  // Campaigns/Ads/AdInsightDaily now come from the real Meta webhook — never wiped here.
+  await prisma.sale.deleteMany({ where: { externalId: { startsWith: "greenn-mock-" } } })
+  await prisma.syncRun.deleteMany({ where: { source: SyncSource.SHEETS } })
 
-  const campaigns = []
-  for (let i = 0; i < CAMPAIGNS.length; i++) {
-    const c = CAMPAIGNS[i]
-    if (!c) throw new Error("campaign not found")
-    const campaign = await prisma.campaign.create({
-      data: {
-        metaCampaignId: `12080000000${i}`,
-        name: c.name,
-        objective: c.objective,
-        status: i === CAMPAIGNS.length - 1 ? "PAUSED" : "ACTIVE",
-      },
-    })
-    campaigns.push(campaign)
-  }
-
+  const existingCampaigns = await prisma.campaign.findMany()
   const today = new Date()
   today.setUTCHours(0, 0, 0, 0)
 
-  for (const campaign of campaigns) {
-    const baseSpend = 80 + rand() * 220
-    for (let d = DAYS - 1; d >= 0; d--) {
-      const date = new Date(today)
-      date.setUTCDate(date.getUTCDate() - d)
-      const spend = Math.round((baseSpend + (rand() - 0.5) * 40) * 100) / 100
-      const impressions = Math.round(spend * (30 + rand() * 20))
-      const clicks = Math.round(impressions * (0.008 + rand() * 0.02))
-      const reach = Math.round(impressions * (0.6 + rand() * 0.2))
-      const ctr = impressions > 0 ? clicks / impressions : 0
-      const cpc = clicks > 0 ? spend / clicks : 0
-      const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0
-
-      await prisma.campaignInsightDaily.create({
-        data: {
-          campaignId: campaign.id,
-          date,
-          spend,
-          impressions,
-          clicks,
-          reach,
-          ctr: Number(ctr.toFixed(4)),
-          cpc: Number(cpc.toFixed(4)),
-          cpm: Number(cpm.toFixed(4)),
-        },
-      })
-    }
-  }
-
   for (let i = 0; i < TOTAL_SALES; i++) {
-    const attributed = rand() < 0.85
-    const campaign = attributed ? pick(campaigns) : null
+    const attributed = existingCampaigns.length > 0 && rand() < 0.85
+    const campaign = attributed ? pick(existingCampaigns) : null
     const daysAgo = Math.floor(rand() * DAYS)
     const saleDate = new Date(today)
     saleDate.setUTCDate(saleDate.getUTCDate() - daysAgo)
@@ -148,14 +95,6 @@ async function main() {
 
   await prisma.syncRun.create({
     data: {
-      source: SyncSource.META,
-      finishedAt: new Date(),
-      status: SyncStatus.SUCCESS,
-      rowsProcessed: campaigns.length * DAYS,
-    },
-  })
-  await prisma.syncRun.create({
-    data: {
       source: SyncSource.SHEETS,
       finishedAt: new Date(),
       status: SyncStatus.SUCCESS,
@@ -164,7 +103,7 @@ async function main() {
   })
 
   console.log(
-    `Seed ok: ${campaigns.length} campanhas, ${campaigns.length * DAYS} insights, ${TOTAL_SALES} vendas`,
+    `Seed ok: ${TOTAL_SALES} vendas mock (${existingCampaigns.length} campanhas reais encontradas para atribuir)`,
   )
 }
 

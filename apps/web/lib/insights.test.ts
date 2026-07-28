@@ -2,44 +2,57 @@ import { describe, expect, it } from "vitest"
 import { buildInsights } from "./insights"
 
 const baseCampaigns = [
-  { campaignId: "1", name: "Campanha A", spend: 1000, revenue: 4000 },
-  { campaignId: "2", name: "Campanha B", spend: 3000, revenue: 1500 },
-  { campaignId: "3", name: "Campanha C", spend: 500, revenue: 900 },
+  { campaignId: "1", name: "Campanha A", clicks: 200, impressions: 5000, ctr: 4.0, cpc: 1.2 },
+  { campaignId: "2", name: "Campanha B", clicks: 50, impressions: 8000, ctr: 0.6, cpc: 0.5 },
+  { campaignId: "3", name: "Campanha C", clicks: 10, impressions: 50, ctr: 20.0, cpc: 3.0 },
 ]
 
 describe("buildInsights", () => {
-  it("aponta a campanha com melhor ROAS", () => {
+  it("aponta a campanha com melhor CTR, ignorando campanhas com poucas impressões", () => {
     const insights = buildInsights({
       campaigns: baseCampaigns,
-      unattributedRevenue: 0,
-      totalRevenue: 6400,
-      currentPeriodRevenue: 6400,
-      previousPeriodRevenue: 6400,
+      totalRevenue: 0,
+      salesCount: 0,
+      currentPeriodRevenue: 0,
+      previousPeriodRevenue: 0,
     })
-    const best = insights.find((i) => i.id === "best-roas")
+    const best = insights.find((i) => i.id === "best-ctr")
     expect(best).toBeDefined()
     expect(best?.message).toContain("Campanha A")
-    expect(best?.message).toContain("4.0x")
+    expect(best?.message).toContain("4.00%")
+    expect(best?.tone).toBe("positive")
   })
 
-  it("alerta campanha com gasto alto e retorno baixo", () => {
+  it("aponta a campanha com menor CPC, ignorando campanhas com poucos cliques", () => {
     const insights = buildInsights({
       campaigns: baseCampaigns,
-      unattributedRevenue: 0,
-      totalRevenue: 6400,
-      currentPeriodRevenue: 6400,
-      previousPeriodRevenue: 6400,
+      totalRevenue: 0,
+      salesCount: 0,
+      currentPeriodRevenue: 0,
+      previousPeriodRevenue: 0,
     })
-    const warning = insights.find((i) => i.id === "low-return-high-spend")
-    expect(warning).toBeDefined()
-    expect(warning?.message).toContain("Campanha B")
+    const best = insights.find((i) => i.id === "best-cpc")
+    expect(best).toBeDefined()
+    expect(best?.message).toContain("Campanha B")
   })
 
-  it("calcula variacao percentual vs periodo anterior", () => {
+  it("nunca gera insight de tom negativo", () => {
     const insights = buildInsights({
       campaigns: baseCampaigns,
-      unattributedRevenue: 0,
+      totalRevenue: 100,
+      salesCount: 1,
+      currentPeriodRevenue: 100,
+      previousPeriodRevenue: 500,
+    })
+    expect(insights.every((i) => i.tone === "positive")).toBe(true)
+    expect(insights.find((i) => i.id === "period-trend")).toBeUndefined()
+  })
+
+  it("calcula variacao percentual positiva vs periodo anterior", () => {
+    const insights = buildInsights({
+      campaigns: [],
       totalRevenue: 6400,
+      salesCount: 10,
       currentPeriodRevenue: 6400,
       previousPeriodRevenue: 3200,
     })
@@ -48,15 +61,16 @@ describe("buildInsights", () => {
     expect(trend?.tone).toBe("positive")
   })
 
-  it("alerta quando vendas nao atribuidas passam do limiar", () => {
+  it("resume total de vendas quando ha vendas no periodo", () => {
     const insights = buildInsights({
-      campaigns: baseCampaigns,
-      unattributedRevenue: 2000,
-      totalRevenue: 6400,
-      currentPeriodRevenue: 6400,
-      previousPeriodRevenue: 6400,
+      campaigns: [],
+      totalRevenue: 8369.4,
+      salesCount: 105,
+      currentPeriodRevenue: 8369.4,
+      previousPeriodRevenue: 0,
     })
-    const unattributed = insights.find((i) => i.id === "unattributed-share")
-    expect(unattributed).toBeDefined()
+    const summary = insights.find((i) => i.id === "sales-summary")
+    expect(summary).toBeDefined()
+    expect(summary?.message).toContain("105")
   })
 })

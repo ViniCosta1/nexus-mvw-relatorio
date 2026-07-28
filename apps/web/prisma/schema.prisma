@@ -12,33 +12,51 @@ model Campaign {
   metaCampaignId String   @unique @map("meta_campaign_id")
   name           String
   objective      String?
-  status         String
+  status         String   @default("ACTIVE")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  insights CampaignInsightDaily[]
-  sales    Sale[]
+  ads   Ad[]
+  sales Sale[]
 
   @@map("campaigns")
 }
 
-model CampaignInsightDaily {
+model Ad {
+  id         String   @id @default(cuid())
+  metaAdId   String   @unique @map("meta_ad_id")
+  name       String
+  adsetId    String?  @map("adset_id")
+  adsetName  String?  @map("adset_name")
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  insights AdInsightDaily[]
+
+  @@index([campaignId])
+  @@map("ads")
+}
+
+model AdInsightDaily {
   id          String   @id @default(cuid())
-  campaignId  String   @map("campaign_id")
-  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  adId        String   @map("ad_id")
+  ad          Ad       @relation(fields: [adId], references: [id])
   date        DateTime @db.Date
   spend       Decimal  @db.Decimal(12, 2)
   impressions Int
   clicks      Int
   reach       Int
+  frequency   Decimal  @db.Decimal(10, 4)
   ctr         Decimal  @db.Decimal(6, 4)
   cpc         Decimal  @db.Decimal(10, 4)
   cpm         Decimal  @db.Decimal(10, 4)
   syncedAt    DateTime @default(now()) @map("synced_at")
 
-  @@unique([campaignId, date])
+  @@unique([adId, date])
   @@index([date])
-  @@map("campaign_insights_daily")
+  @@map("ad_insights_daily")
 }
 
 model Sale {
