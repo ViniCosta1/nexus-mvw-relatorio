@@ -31,7 +31,7 @@ export default async function VisaoGeralPage() {
           Últimos 30 dias · {formatDateLongBR(range.from)} – {formatDateLongBR(range.to)}
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard title="Investido" value={formatCurrencyBRL(kpis.totalSpend)} />
         <KpiCard title="Vendido" value={formatCurrencyBRL(kpis.totalRevenue)} />
         <KpiCard title="ROAS" value={formatRoas(kpis.roas)} hint="retorno por real investido" />
