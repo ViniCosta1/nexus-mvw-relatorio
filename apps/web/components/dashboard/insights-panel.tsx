@@ -16,7 +16,7 @@ export function InsightsPanel({ insights }: { insights: Insight[] }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {insights.map((insight) => (
-          <p key={insight.id} className={cn("py-1 pl-3 text-sm", TONE_STYLES[insight.tone])}>
+          <p key={insight.id} className={cn("py-1 pl-3 text-sm italic", TONE_STYLES[insight.tone])}>
             {insight.message}
           </p>
         ))}

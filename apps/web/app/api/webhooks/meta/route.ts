@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { SyncSource, SyncStatus } from "@prisma/client"
 import { prisma } from "@/lib/db"
+import { ACCOUNT_START_DAY } from "@/lib/config"
 
 interface MetaAdInsightRow {
   ad_id: string
@@ -10,6 +11,12 @@ interface MetaAdInsightRow {
   campaign_id: string
   campaign_name: string
   objective?: string | null
+  // Optional creative preview fields — send from Make's ad creative if available.
+  creative_type?: string | null
+  object_type?: string | null
+  thumbnail_url?: string | null
+  image_url?: string | null
+  permalink_url?: string | null
   date_start: string
   date_stop?: string | null
   spend?: string | number | null
@@ -83,6 +90,19 @@ export async function POST(request: Request) {
     }
     return !spansMultipleDays
   })
+    // Drop rows before the account-management start date. Make's Insights pull can
+    // reach back into a prior agency's spend on this same ad account; that money
+    // isn't ours to report, so reject it at the door rather than filtering it out
+    // downstream (which would leave stale campaigns/ads littering the DB).
+    .filter((row) => {
+      const beforeStart = row.date_start.slice(0, 10) < ACCOUNT_START_DAY
+      if (beforeStart) {
+        rowErrors.push(
+          `ad ${row.ad_id}: row date ${row.date_start.slice(0, 10)} is before account start ${ACCOUNT_START_DAY}, skipping`,
+        )
+      }
+      return !beforeStart
+    })
 
   // Dedupe by key before firing parallel upserts, so two rows for the same
   // campaign/ad/day never race against each other — last one wins, matching
@@ -123,6 +143,15 @@ export async function POST(request: Request) {
         return
       }
       try {
+        // Only overwrite creative fields when the payload actually carries them
+        // (undefined tells Prisma to leave the stored value untouched), so a
+        // later insights-only sync never wipes a previously captured thumbnail.
+        const creative = {
+          creativeType: row.creative_type ?? row.object_type ?? undefined,
+          thumbnailUrl: row.thumbnail_url ?? undefined,
+          imageUrl: row.image_url ?? undefined,
+          permalinkUrl: row.permalink_url ?? undefined,
+        }
         const ad = await prisma.ad.upsert({
           where: { metaAdId },
           update: {
@@ -130,6 +159,7 @@ export async function POST(request: Request) {
             adsetId: row.adset_id ?? undefined,
             adsetName: row.adset_name ?? undefined,
             campaignId,
+            ...creative,
           },
           create: {
             metaAdId,
@@ -137,6 +167,7 @@ export async function POST(request: Request) {
             adsetId: row.adset_id ?? undefined,
             adsetName: row.adset_name ?? undefined,
             campaignId,
+            ...creative,
           },
         })
         adIdByMetaId.set(metaAdId, ad.id)

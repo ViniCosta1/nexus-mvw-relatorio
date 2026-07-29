@@ -9,14 +9,36 @@ import { Button } from "@workspace/ui/components/button"
 const PRESETS = [
   { label: "30 dias", days: 30 },
   { label: "60 dias", days: 60 },
-  { label: "90 dias", days: 90 },
 ]
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10)
 }
 
-export function FilterBar({ activeDays, from, to }: { activeDays: number; from: string; to: string }) {
+/**
+ * The from/to a preset would produce: `days` back from today, but never earlier
+ * than the account start (traffic began 2026-06-01). Kept identical to the
+ * server-side clamp so a preset button lights up when it matches the URL range.
+ */
+function presetRange(days: number, todayISO: string, accountStartDay: string) {
+  const to = new Date(`${todayISO}T00:00:00.000Z`)
+  const fromDate = new Date(to)
+  fromDate.setUTCDate(fromDate.getUTCDate() - (days - 1))
+  const fromISO = toISODate(fromDate)
+  return { from: fromISO < accountStartDay ? accountStartDay : fromISO, to: todayISO }
+}
+
+export function FilterBar({
+  from,
+  to,
+  todayISO,
+  accountStartDay,
+}: {
+  from: string
+  to: string
+  todayISO: string
+  accountStartDay: string
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -24,6 +46,13 @@ export function FilterBar({ activeDays, from, to }: { activeDays: number; from: 
   const [search, setSearch] = useState(searchParams.get("q") ?? "")
   const [customFrom, setCustomFrom] = useState(from)
   const [customTo, setCustomTo] = useState(to)
+
+  // Keep the date inputs in sync with the active range, so clicking a preset (or
+  // any navigation that changes from/to) also updates what the inputs show.
+  useEffect(() => {
+    setCustomFrom(from)
+    setCustomTo(to)
+  }, [from, to])
 
   const setParam = useCallback(
     (key: string, value: string | null) => {
@@ -38,13 +67,10 @@ export function FilterBar({ activeDays, from, to }: { activeDays: number; from: 
   )
 
   function applyPreset(days: number) {
-    const toDate = new Date()
-    toDate.setUTCHours(0, 0, 0, 0)
-    const fromDate = new Date(toDate)
-    fromDate.setUTCDate(fromDate.getUTCDate() - (days - 1))
+    const range = presetRange(days, todayISO, accountStartDay)
     const params = new URLSearchParams(searchParams.toString())
-    params.set("from", toISODate(fromDate))
-    params.set("to", toISODate(toDate))
+    params.set("from", range.from)
+    params.set("to", range.to)
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`)
     })
@@ -72,17 +98,21 @@ export function FilterBar({ activeDays, from, to }: { activeDays: number; from: 
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          {PRESETS.map((p) => (
-            <Button
-              key={p.days}
-              type="button"
-              size="sm"
-              variant={p.days === activeDays ? "default" : "outline"}
-              onClick={() => applyPreset(p.days)}
-            >
-              {p.label}
-            </Button>
-          ))}
+          {PRESETS.map((p) => {
+            const range = presetRange(p.days, todayISO, accountStartDay)
+            const active = range.from === from && range.to === to
+            return (
+              <Button
+                key={p.days}
+                type="button"
+                size="sm"
+                variant={active ? "default" : "outline"}
+                onClick={() => applyPreset(p.days)}
+              >
+                {p.label}
+              </Button>
+            )
+          })}
           <span className="text-muted-foreground px-1 text-sm">ou período:</span>
           <Input
             type="date"

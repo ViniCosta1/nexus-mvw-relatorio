@@ -3,7 +3,17 @@
 import { Trophy } from "@phosphor-icons/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 
-export function HighlightCard({ title, name, metric }: { title: string; name: string; metric: string }) {
+export function HighlightCard({
+  title,
+  name,
+  metric,
+  reason,
+}: {
+  title: string
+  name: string
+  metric: string
+  reason?: string
+}) {
   return (
     <Card className="border-primary/30">
       <CardHeader className="flex-row items-center gap-2 pb-2">
@@ -15,6 +25,7 @@ export function HighlightCard({ title, name, metric }: { title: string; name: st
           {name}
         </div>
         <p className="text-muted-foreground mt-1 text-xs">{metric}</p>
+        {reason ? <p className="mt-2 text-sm leading-snug">{reason}</p> : null}
       </CardContent>
     </Card>
   )

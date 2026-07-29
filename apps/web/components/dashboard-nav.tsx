@@ -48,7 +48,16 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       <div className="mb-6 flex items-center gap-2 px-2">
-        <Image src="/logo-mvw.webp" alt="MVW" width={120} height={36} className="h-9 w-auto" />
+        {/* Logo art is white text + green mark on transparent. On the light sidebar
+            the white text would vanish, so invert+hue-rotate flips it to dark text
+            while keeping the green mark green. */}
+        <Image
+          src="/logo-mvw.webp"
+          alt="MVW"
+          width={120}
+          height={36}
+          className="h-9 w-auto invert hue-rotate-180"
+        />
       </div>
       <NavLinks onNavigate={onNavigate} />
     </>
@@ -58,7 +67,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
 /** Permanent sidebar, visible from `md` breakpoint up. */
 export function DashboardNav() {
   return (
-    <nav className="bg-sidebar text-sidebar-foreground hidden h-full w-60 shrink-0 flex-col gap-1 p-4 md:flex">
+    <nav className="bg-sidebar text-sidebar-foreground border-sidebar-border hidden min-h-svh w-60 shrink-0 flex-col gap-1 self-stretch border-r p-4 md:flex">
       <NavContent />
     </nav>
   )
@@ -70,7 +79,7 @@ export function MobileNav() {
 
   return (
     <div className="flex items-center justify-between border-b p-4 md:hidden">
-      <Image src="/logo-mvw.webp" alt="MVW" width={100} height={30} className="h-7 w-auto" />
+      <Image src="/logo-mvw.webp" alt="MVW" width={100} height={30} className="h-7 w-auto invert hue-rotate-180" />
       <Sheet open={open} onOpenChange={setOpen}>
         <Button variant="ghost" size="icon" aria-label="Abrir menu" onClick={() => setOpen(true)}>
           <List size={20} />

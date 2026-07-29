@@ -1,16 +1,36 @@
 import { prisma } from "@/lib/db"
+import { clampFrom } from "@/lib/config"
+import { channelForSeller, shortProductName } from "@/lib/sales"
 
 export interface DateRange {
   from: Date
   to: Date
 }
 
-export function getDefaultDateRange(days = 30): DateRange {
+export function getDefaultDateRange(days = 60): DateRange {
   const to = new Date()
   to.setUTCHours(0, 0, 0, 0)
   const from = new Date(to)
   from.setUTCDate(from.getUTCDate() - (days - 1))
   return { from, to }
+}
+
+/**
+ * Resolves the from/to query params into a DateRange, defaulting to the last 60
+ * days. The lower bound is always clamped to the account-management start date
+ * (2026-06-01) so no view — default, preset, or hand-picked — ever reaches into
+ * the prior agency's period.
+ */
+export function resolveRange(from?: string, to?: string): DateRange {
+  if (from && to) {
+    const fromDate = new Date(`${from}T00:00:00.000Z`)
+    const toDate = new Date(`${to}T00:00:00.000Z`)
+    if (!Number.isNaN(fromDate.getTime()) && !Number.isNaN(toDate.getTime())) {
+      return { from: clampFrom(fromDate), to: toDate }
+    }
+  }
+  const def = getDefaultDateRange(60)
+  return { from: clampFrom(def.from), to: def.to }
 }
 
 export function previousPeriod(range: DateRange): DateRange {
@@ -28,6 +48,9 @@ export function previousPeriod(range: DateRange): DateRange {
  */
 export interface KpiSummary {
   totalSpend: number
+  totalImpressions: number
+  totalClicks: number
+  cpc: number
   totalRevenue: number
   avgTicket: number
   salesCount: number
@@ -38,8 +61,8 @@ export interface KpiSummary {
 export async function getKpiSummary(range: DateRange): Promise<KpiSummary> {
   const [insights, sales, previousSales] = await Promise.all([
     prisma.adInsightDaily.findMany({
-      where: { date: { gte: range.from, lte: range.to } },
-      select: { spend: true },
+      where: { date: { gte: clampFrom(range.from), lte: range.to } },
+      select: { spend: true, impressions: true, clicks: true },
     }),
     prisma.sale.findMany({
       where: { saleDate: { gte: range.from, lte: range.to } },
@@ -52,11 +75,16 @@ export async function getKpiSummary(range: DateRange): Promise<KpiSummary> {
   ])
 
   const totalSpend = insights.reduce((sum, i) => sum + Number(i.spend), 0)
+  const totalImpressions = insights.reduce((sum, i) => sum + i.impressions, 0)
+  const totalClicks = insights.reduce((sum, i) => sum + i.clicks, 0)
   const totalRevenue = sales.reduce((sum, s) => sum + Number(s.amount), 0)
   const previousPeriodRevenue = previousSales.reduce((sum, s) => sum + Number(s.amount), 0)
 
   return {
     totalSpend,
+    totalImpressions,
+    totalClicks,
+    cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
     totalRevenue,
     avgTicket: sales.length > 0 ? totalRevenue / sales.length : 0,
     salesCount: sales.length,
@@ -65,23 +93,38 @@ export async function getKpiSummary(range: DateRange): Promise<KpiSummary> {
   }
 }
 
+/**
+ * The strategy is encoded as the 3rd bracketed token of the campaign name, e.g.
+ * "[MVW][2607][ENGAJAMENTO] - Live Rafa" -> "ENGAJAMENTO". Names that don't
+ * follow the convention fall back to "SEM ESTRATÉGIA".
+ */
+export function parseStrategy(name: string): string {
+  const tokens = [...name.matchAll(/\[([^\]]*)\]/g)].map((m) => m[1]?.trim() ?? "")
+  const strategy = tokens[2]
+  return strategy && strategy.length > 0 ? strategy.toUpperCase() : "SEM ESTRATÉGIA"
+}
+
 /** Campaign-level metrics derived purely from Meta ad insights — no sales data mixed in. */
 export interface CampaignPerformanceRow {
   campaignId: string
   name: string
+  strategy: string
   status: string
   spend: number
   impressions: number
   clicks: number
+  reach: number
   ctr: number
   cpc: number
+  cpm: number
+  adCount: number
 }
 
 export async function getCampaignPerformance(range: DateRange, search?: string): Promise<CampaignPerformanceRow[]> {
   const campaigns = await prisma.campaign.findMany({
     where: search ? { name: { contains: search, mode: "insensitive" } } : undefined,
     include: {
-      ads: { include: { insights: { where: { date: { gte: range.from, lte: range.to } } } } },
+      ads: { include: { insights: { where: { date: { gte: clampFrom(range.from), lte: range.to } } } } },
     },
   })
 
@@ -91,25 +134,70 @@ export async function getCampaignPerformance(range: DateRange, search?: string):
       const spend = allInsights.reduce((sum, i) => sum + Number(i.spend), 0)
       const impressions = allInsights.reduce((sum, i) => sum + i.impressions, 0)
       const clicks = allInsights.reduce((sum, i) => sum + i.clicks, 0)
+      const reach = allInsights.reduce((sum, i) => sum + i.reach, 0)
+      const adCount = c.ads.filter((ad) => ad.insights.length > 0).length
       return {
         campaignId: c.id,
         name: c.name,
+        strategy: parseStrategy(c.name),
         status: c.status,
         spend,
         impressions,
         clicks,
+        reach,
         ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
         cpc: clicks > 0 ? spend / clicks : 0,
+        cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+        adCount,
       }
     })
     .filter((c) => c.impressions > 0)
     .sort((a, b) => b.spend - a.spend)
 }
 
+/** Aggregated Meta performance grouped by campaign strategy (the 3rd name token). */
+export interface StrategyPerformanceRow {
+  strategy: string
+  campaignCount: number
+  spend: number
+  impressions: number
+  clicks: number
+  ctr: number
+  cpc: number
+}
+
+export async function getStrategyPerformance(range: DateRange, search?: string): Promise<StrategyPerformanceRow[]> {
+  const campaigns = await getCampaignPerformance(range, search)
+  const byStrategy = new Map<string, StrategyPerformanceRow>()
+  for (const c of campaigns) {
+    const cur =
+      byStrategy.get(c.strategy) ??
+      { strategy: c.strategy, campaignCount: 0, spend: 0, impressions: 0, clicks: 0, ctr: 0, cpc: 0 }
+    cur.campaignCount += 1
+    cur.spend += c.spend
+    cur.impressions += c.impressions
+    cur.clicks += c.clicks
+    byStrategy.set(c.strategy, cur)
+  }
+  return [...byStrategy.values()]
+    .map((s) => ({
+      ...s,
+      ctr: s.impressions > 0 ? (s.clicks / s.impressions) * 100 : 0,
+      cpc: s.clicks > 0 ? s.spend / s.clicks : 0,
+    }))
+    .sort((a, b) => b.spend - a.spend)
+}
+
 export interface AdRankingRow {
   adId: string
+  metaAdId: string
   name: string
   campaignName: string
+  adsetName: string | null
+  creativeType: string | null
+  thumbnailUrl: string | null
+  imageUrl: string | null
+  permalinkUrl: string | null
   spend: number
   impressions: number
   clicks: number
@@ -135,7 +223,7 @@ export async function getFullAdList(range: DateRange, search?: string): Promise<
       : undefined,
     include: {
       campaign: { select: { name: true } },
-      insights: { where: { date: { gte: range.from, lte: range.to } } },
+      insights: { where: { date: { gte: clampFrom(range.from), lte: range.to } } },
     },
   })
 
@@ -147,8 +235,14 @@ export async function getFullAdList(range: DateRange, search?: string): Promise<
       const reach = ad.insights.reduce((sum, i) => sum + i.reach, 0)
       return {
         adId: ad.id,
+        metaAdId: ad.metaAdId,
         name: ad.name,
         campaignName: ad.campaign.name,
+        adsetName: ad.adsetName,
+        creativeType: ad.creativeType,
+        thumbnailUrl: ad.thumbnailUrl,
+        imageUrl: ad.imageUrl,
+        permalinkUrl: ad.permalinkUrl,
         spend,
         impressions,
         clicks,
@@ -188,6 +282,76 @@ export async function getSellerRanking(range: DateRange, search?: string): Promi
   return [...bySeller.values()].sort((a, b) => b.revenue - a.revenue)
 }
 
+export interface SalesHighlightEntry {
+  label: string
+  salesCount: number
+  revenue: number
+}
+
+export interface SalesHighlights {
+  salesCount: number
+  revenue: number
+  avgTicket: number
+  freeCount: number
+  topChannel?: SalesHighlightEntry
+  topProductPaid?: SalesHighlightEntry
+  topProductFree?: SalesHighlightEntry
+  topSeller?: SalesHighlightEntry
+}
+
+/** Standout numbers for the sales page: leading channel, product and seller by
+ *  volume, plus period totals. Channel/product use the same display transforms
+ *  as the table so the highlights match what's listed. */
+export async function getSalesHighlights(range: DateRange, search?: string): Promise<SalesHighlights> {
+  const sales = await prisma.sale.findMany({
+    where: {
+      saleDate: { gte: range.from, lte: range.to },
+      ...(search
+        ? {
+            OR: [
+              { clientName: { contains: search, mode: "insensitive" } },
+              { sellerName: { contains: search, mode: "insensitive" } },
+              { productName: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    select: { sellerName: true, productName: true, amount: true },
+  })
+
+  const revenue = sales.reduce((sum, s) => sum + Number(s.amount), 0)
+  const freeCount = sales.filter((s) => Number(s.amount) <= 0).length
+  const paidCount = sales.length - freeCount
+
+  const topBy = (
+    keyOf: (s: (typeof sales)[number]) => string,
+    filter?: (s: (typeof sales)[number]) => boolean,
+  ): SalesHighlightEntry | undefined => {
+    const map = new Map<string, SalesHighlightEntry>()
+    for (const s of sales) {
+      if (filter && !filter(s)) continue
+      const label = keyOf(s)
+      const cur = map.get(label) ?? { label, salesCount: 0, revenue: 0 }
+      cur.salesCount += 1
+      cur.revenue += Number(s.amount)
+      map.set(label, cur)
+    }
+    return [...map.values()].sort((a, b) => b.salesCount - a.salesCount || b.revenue - a.revenue)[0]
+  }
+
+  const product = (s: (typeof sales)[number]) => shortProductName(s.productName)
+  return {
+    salesCount: sales.length,
+    revenue,
+    avgTicket: paidCount > 0 ? revenue / paidCount : 0,
+    freeCount,
+    topChannel: topBy((s) => channelForSeller(s.sellerName)),
+    topProductPaid: topBy(product, (s) => Number(s.amount) > 0),
+    topProductFree: topBy(product, (s) => Number(s.amount) <= 0),
+    topSeller: topBy((s) => s.sellerName),
+  }
+}
+
 export interface SaleRow {
   id: string
   clientName: string
@@ -223,10 +387,10 @@ export async function getSalesList(range: DateRange, search?: string): Promise<S
     clientEmail: s.clientEmail,
     clientPhone: s.clientPhone,
     sellerName: s.sellerName,
-    productName: s.productName,
+    productName: shortProductName(s.productName),
     amount: Number(s.amount),
     saleDate: s.saleDate.toISOString().slice(0, 10),
-    channel: s.channel,
+    channel: channelForSeller(s.sellerName),
   }))
 }
 
@@ -239,7 +403,7 @@ export interface SpendVsSalesPoint {
 export async function getSpendVsSalesSeries(range: DateRange): Promise<SpendVsSalesPoint[]> {
   const [insights, sales] = await Promise.all([
     prisma.adInsightDaily.findMany({
-      where: { date: { gte: range.from, lte: range.to } },
+      where: { date: { gte: clampFrom(range.from), lte: range.to } },
       select: { date: true, spend: true },
     }),
     prisma.sale.findMany({

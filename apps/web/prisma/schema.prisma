@@ -23,15 +23,21 @@ model Campaign {
 }
 
 model Ad {
-  id         String   @id @default(cuid())
-  metaAdId   String   @unique @map("meta_ad_id")
-  name       String
-  adsetId    String?  @map("adset_id")
-  adsetName  String?  @map("adset_name")
-  campaignId String   @map("campaign_id")
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  metaAdId     String   @unique @map("meta_ad_id")
+  name         String
+  adsetId      String?  @map("adset_id")
+  adsetName    String?  @map("adset_name")
+  campaignId   String   @map("campaign_id")
+  campaign     Campaign @relation(fields: [campaignId], references: [id])
+  // Creative preview, populated from Make/Meta when available. Nullable: many
+  // pipelines only send insights, so the dialog falls back to a placeholder.
+  creativeType String?  @map("creative_type") // IMAGE | VIDEO | ...
+  thumbnailUrl String?  @map("thumbnail_url")
+  imageUrl     String?  @map("image_url")
+  permalinkUrl String?  @map("permalink_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   insights AdInsightDaily[]
 

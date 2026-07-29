@@ -28,3 +28,14 @@ export function formatDateLongBR(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d
   return date.toLocaleDateString("pt-BR", { timeZone: "UTC" })
 }
+
+/** Formats a UTC-midnight date in full written form, e.g. "1 de junho de 2026". */
+export function formatDateFullBR(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d
+  return date.toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
