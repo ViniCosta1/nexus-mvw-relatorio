@@ -48,3 +48,18 @@ export function VendasSkeleton() {
     </div>
   )
 }
+
+/** Loading placeholder for the Social page (KPIs, chart, daily table). */
+export function SocialSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Block key={i} className="h-28" />
+        ))}
+      </div>
+      <Block className="h-80" />
+      <Block className="h-96" />
+    </div>
+  )
+}
