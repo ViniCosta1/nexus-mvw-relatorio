@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { getDefaultDateRange, previousPeriod } from "./overview"
+import { getDefaultDateRange, previousPeriod, resolveRange } from "./overview"
 
 describe("getDefaultDateRange", () => {
   it("returns a range spanning exactly `days` days ending today (UTC midnight)", () => {
@@ -58,5 +58,26 @@ describe("previousPeriod", () => {
 
     expect(prev.from.toISOString().slice(0, 10)).toBe("2026-06-14")
     expect(prev.to.toISOString().slice(0, 10)).toBe("2026-06-14")
+  })
+})
+
+describe("resolveRange", () => {
+  it("clamps the lower bound to the account start date by default", () => {
+    const range = resolveRange("2026-01-01", "2026-07-01")
+    expect(range.from.toISOString().slice(0, 10)).toBe("2026-06-01")
+    expect(range.to.toISOString().slice(0, 10)).toBe("2026-07-01")
+  })
+
+  it("leaves the lower bound alone when clamping is disabled", () => {
+    const range = resolveRange("2026-01-01", "2026-07-01", { clamp: false })
+    expect(range.from.toISOString().slice(0, 10)).toBe("2026-01-01")
+  })
+
+  it("does not clamp the default range when clamping is disabled", () => {
+    const range = resolveRange(undefined, undefined, { clamp: false })
+    const expected = new Date()
+    expected.setUTCHours(0, 0, 0, 0)
+    expected.setUTCDate(expected.getUTCDate() - 59)
+    expect(range.from.getTime()).toBe(expected.getTime())
   })
 })

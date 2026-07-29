@@ -17,20 +17,29 @@ export function getDefaultDateRange(days = 60): DateRange {
 
 /**
  * Resolves the from/to query params into a DateRange, defaulting to the last 60
- * days. The lower bound is always clamped to the account-management start date
- * (2026-06-01) so no view — default, preset, or hand-picked — ever reaches into
- * the prior agency's period.
+ * days. The lower bound is clamped to the account-management start date
+ * (2026-06-01) so no Meta Ads view — default, preset, or hand-picked — reaches
+ * into the prior agency's period.
+ *
+ * `clamp: false` opts out, for data streams the clamp doesn't govern: the
+ * Instagram page reports organic activity, which was never under the prior
+ * agency's spend, so its backfilled days must stay visible.
  */
-export function resolveRange(from?: string, to?: string): DateRange {
+export function resolveRange(
+  from?: string,
+  to?: string,
+  options: { clamp?: boolean } = {},
+): DateRange {
+  const floor = (d: Date) => (options.clamp === false ? d : clampFrom(d))
   if (from && to) {
     const fromDate = new Date(`${from}T00:00:00.000Z`)
     const toDate = new Date(`${to}T00:00:00.000Z`)
     if (!Number.isNaN(fromDate.getTime()) && !Number.isNaN(toDate.getTime())) {
-      return { from: clampFrom(fromDate), to: toDate }
+      return { from: floor(fromDate), to: toDate }
     }
   }
   const def = getDefaultDateRange(60)
-  return { from: clampFrom(def.from), to: def.to }
+  return { from: floor(def.from), to: def.to }
 }
 
 export function previousPeriod(range: DateRange): DateRange {
