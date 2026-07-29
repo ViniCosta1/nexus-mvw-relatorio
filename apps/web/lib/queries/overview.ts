@@ -113,12 +113,70 @@ export function parseStrategy(name: string): string {
   return strategy && strategy.length > 0 ? strategy.toUpperCase() : "SEM ESTRATÉGIA"
 }
 
+/**
+ * Percentage return of the period: how much the ticket revenue exceeded the ad
+ * spend, as a share of that spend. `null` when nothing was invested, since a
+ * return over zero has no meaning.
+ *
+ * This is a *period-level* comparison, not attribution. No UTM or pixel wires a
+ * Greenn sale back to a Meta ad here, so some of this revenue came from sources
+ * that never touched an ad — the UI labels it that way and the number must never
+ * be read as "each real invested returned X through the ads".
+ */
+export function periodRoi(totalRevenue: number, totalSpend: number): number | null {
+  if (totalSpend === 0) return null
+  return ((totalRevenue - totalSpend) / totalSpend) * 100
+}
+
+export type DeliveryState = "DELIVERING" | "STOPPED" | "NO_DATA"
+
+export interface CampaignDelivery {
+  state: DeliveryState
+  /** Last day the campaign actually served impressions, YYYY-MM-DD. */
+  lastDay: string | null
+}
+
+/** A day older than this many days back can no longer support a "delivering" claim. */
+const DELIVERY_FRESHNESS_DAYS = 1
+
+/**
+ * Whether a campaign was still serving at the end of the reported period.
+ *
+ * Meta's own `effective_status` never reaches this database — the Make scenario
+ * only sends insights — so a stored status column would be a guess dressed up as
+ * fact. This derives the answer from the two things we do have: the last day the
+ * campaign served impressions, and how recent the data itself is.
+ *
+ * A campaign only counts as delivering when it served on the newest collected
+ * day *and* that day is at most one day old. Yesterday is allowed because the
+ * current day is still accumulating; anything older means the pipeline went
+ * quiet, and "still running" would be a claim the data can't support.
+ */
+export function deliveryStatus(
+  lastDayWithImpressions: string | null,
+  latestCollectedDay: string | null,
+  todayDay: string,
+): CampaignDelivery {
+  if (!lastDayWithImpressions) return { state: "NO_DATA", lastDay: null }
+
+  const freshnessFloor = new Date(`${todayDay}T00:00:00.000Z`)
+  freshnessFloor.setUTCDate(freshnessFloor.getUTCDate() - DELIVERY_FRESHNESS_DAYS)
+  const isFresh = (latestCollectedDay ?? "") >= freshnessFloor.toISOString().slice(0, 10)
+
+  return {
+    state: lastDayWithImpressions === latestCollectedDay && isFresh ? "DELIVERING" : "STOPPED",
+    lastDay: lastDayWithImpressions,
+  }
+}
+
 /** Campaign-level metrics derived purely from Meta ad insights — no sales data mixed in. */
 export interface CampaignPerformanceRow {
   campaignId: string
   name: string
   strategy: string
-  status: string
+  /** Sortable state; `lastDeliveryDay` carries the date the UI shows with it. */
+  delivery: DeliveryState
+  lastDeliveryDay: string | null
   spend: number
   impressions: number
   clicks: number
@@ -137,9 +195,30 @@ export async function getCampaignPerformance(range: DateRange, search?: string):
     },
   })
 
+  // The freshest day with any delivery in the whole period. Campaigns that also
+  // served on it are still running; the rest stopped earlier.
+  const latestCollectedDay = campaigns
+    .flatMap((c) => c.ads.flatMap((ad) => ad.insights))
+    .filter((i) => i.impressions > 0)
+    .reduce<string | null>((latest, i) => {
+      const day = i.date.toISOString().slice(0, 10)
+      return latest === null || day > latest ? day : latest
+    }, null)
+
   return campaigns
     .map((c) => {
       const allInsights = c.ads.flatMap((ad) => ad.insights)
+      const lastDayWithImpressions = allInsights
+        .filter((i) => i.impressions > 0)
+        .reduce<string | null>((latest, i) => {
+          const day = i.date.toISOString().slice(0, 10)
+          return latest === null || day > latest ? day : latest
+        }, null)
+      const delivery = deliveryStatus(
+        lastDayWithImpressions,
+        latestCollectedDay,
+        new Date().toISOString().slice(0, 10),
+      )
       const spend = allInsights.reduce((sum, i) => sum + Number(i.spend), 0)
       const impressions = allInsights.reduce((sum, i) => sum + i.impressions, 0)
       const clicks = allInsights.reduce((sum, i) => sum + i.clicks, 0)
@@ -149,7 +228,8 @@ export async function getCampaignPerformance(range: DateRange, search?: string):
         campaignId: c.id,
         name: c.name,
         strategy: parseStrategy(c.name),
-        status: c.status,
+        delivery: delivery.state,
+        lastDeliveryDay: delivery.lastDay,
         spend,
         impressions,
         clicks,

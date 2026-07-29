@@ -3,6 +3,7 @@
 import { ImageSquare, Play } from "@phosphor-icons/react"
 import { Badge } from "@workspace/ui/components/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@workspace/ui/components/dialog"
+import { DeliveryBadge } from "@/components/dashboard/delivery-badge"
 import { StrategyBadge } from "@/components/dashboard/strategy-badge"
 import { formatCurrencyBRL } from "@/lib/format"
 import type { AdRankingRow, CampaignPerformanceRow } from "@/lib/queries/overview"
@@ -33,9 +34,7 @@ export function CampaignDetailDialog({
             <DialogTitle className="pr-8">{row.name}</DialogTitle>
             <DialogDescription className="flex flex-wrap items-center gap-2 pt-1">
               <StrategyBadge strategy={row.strategy} />
-              <Badge variant={row.status === "ACTIVE" ? "default" : "secondary"}>
-                {row.status === "ACTIVE" ? "Ativa" : "Pausada"}
-              </Badge>
+              <DeliveryBadge state={row.delivery} lastDay={row.lastDeliveryDay} />
               <span>
                 {row.adCount} {row.adCount === 1 ? "criativo" : "criativos"}
               </span>

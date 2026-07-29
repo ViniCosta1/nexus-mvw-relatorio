@@ -8,6 +8,7 @@ import { Input } from "@workspace/ui/components/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table"
 import { cn } from "@workspace/ui/lib/utils"
 import { AdDetailDialog, CampaignDetailDialog } from "@/components/dashboard/detail-dialogs"
+import { DeliveryBadge } from "@/components/dashboard/delivery-badge"
 import { StrategyBadge } from "@/components/dashboard/strategy-badge"
 import { formatCurrencyBRL } from "@/lib/format"
 import type {
@@ -89,7 +90,7 @@ export function CampaignRankingTable({ rows }: { rows: CampaignPerformanceRow[] 
               <TableRow>
                 <SortHeader<CampaignPerformanceRow> label="Campanha" sortKey="name" sort={sort} onSort={onSort} />
                 <SortHeader<CampaignPerformanceRow> label="Estratégia" sortKey="strategy" sort={sort} onSort={onSort} />
-                <SortHeader<CampaignPerformanceRow> label="Status" sortKey="status" sort={sort} onSort={onSort} />
+                <SortHeader<CampaignPerformanceRow> label="Veiculação" sortKey="delivery" sort={sort} onSort={onSort} />
                 <SortHeader<CampaignPerformanceRow> label="Investido" sortKey="spend" sort={sort} onSort={onSort} align="right" />
                 <SortHeader<CampaignPerformanceRow> label="Impressões" sortKey="impressions" sort={sort} onSort={onSort} align="right" />
                 <SortHeader<CampaignPerformanceRow> label="Cliques" sortKey="clicks" sort={sort} onSort={onSort} align="right" />
@@ -111,9 +112,7 @@ export function CampaignRankingTable({ rows }: { rows: CampaignPerformanceRow[] 
                     <StrategyBadge strategy={row.strategy} />
                   </TableCell>
                   <TableCell>
-                    <Badge variant={row.status === "ACTIVE" ? "default" : "secondary"}>
-                      {row.status === "ACTIVE" ? "Ativa" : "Pausada"}
-                    </Badge>
+                    <DeliveryBadge state={row.delivery} lastDay={row.lastDeliveryDay} />
                   </TableCell>
                   <TableCell className="text-right">{formatCurrencyBRL(row.spend)}</TableCell>
                   <TableCell className="text-right">{row.impressions.toLocaleString("pt-BR")}</TableCell>

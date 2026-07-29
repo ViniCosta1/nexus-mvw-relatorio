@@ -18,6 +18,7 @@ import {
   getAdRanking,
   getSpendVsSalesSeries,
   getSellerRanking,
+  periodRoi,
   type DateRange,
 } from "@/lib/queries/overview"
 
@@ -58,6 +59,11 @@ const KPI_INFO: Record<string, KpiInfo> = {
     what: "Quantidade total de ingressos emitidos no período (pagos + cortesias).",
     example: "Ex.: 105 ingressos = 15 pagos + 90 cortesias/convidados.",
     why: "Mede o volume do evento; a separação pago vs cortesia fica na aba Vendas & Clientes.",
+  },
+  roi: {
+    what: "Quanto a receita de ingressos superou o investimento em anúncios no mesmo período: (vendido − investido) ÷ investido.",
+    example: "Ex.: R$ 8.369 vendidos com R$ 2.700 investidos = +210%.",
+    why: "Dá a leitura financeira do período inteiro. Atenção: não há atribuição — nenhuma venda é rastreada até um anúncio específico, então parte dessa receita pode vir de indicação, orgânico ou venda direta. É comparação de período, não retorno provado do anúncio.",
   },
 }
 
@@ -129,6 +135,7 @@ async function OverviewContent({ range, search }: { range: DateRange; search?: s
   // it doesn't read as an unexplained trophy.
   const avgCampaignCtr = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.ctr, 0) / campaigns.length : 0
   const nf = (n: number) => n.toLocaleString("pt-BR")
+  const roi = periodRoi(kpis.totalRevenue, kpis.totalSpend)
 
   const campaignReason = bestCampaign
     ? `Maior CTR do período: ${bestCampaign.ctr.toFixed(2)}%${
@@ -152,6 +159,12 @@ async function OverviewContent({ range, search }: { range: DateRange; search?: s
         <KpiCard title="Vendido em ingressos" value={formatCurrencyBRL(kpis.totalRevenue)} hint="Greenn (bruto)" info={KPI_INFO.revenue} />
         <KpiCard title="Ticket médio" value={formatCurrencyBRL(kpis.avgTicket)} info={KPI_INFO.ticket} />
         <KpiCard title="Ingressos vendidos" value={String(kpis.salesCount)} info={KPI_INFO.salesCount} />
+        <KpiCard
+          title="ROI do período"
+          value={roi === null ? "—" : `${roi > 0 ? "+" : ""}${roi.toFixed(0)}%`}
+          hint={roi === null ? "Sem investimento no período" : "Vendido vs. investido · sem atribuição"}
+          info={KPI_INFO.roi}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

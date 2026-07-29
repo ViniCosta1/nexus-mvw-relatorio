@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { getDefaultDateRange, previousPeriod, resolveRange } from "./overview"
+import {
+  deliveryStatus,
+  getDefaultDateRange,
+  periodRoi,
+  previousPeriod,
+  resolveRange,
+} from "./overview"
 
 describe("getDefaultDateRange", () => {
   it("returns a range spanning exactly `days` days ending today (UTC midnight)", () => {
@@ -79,5 +85,68 @@ describe("resolveRange", () => {
     expected.setUTCHours(0, 0, 0, 0)
     expected.setUTCDate(expected.getUTCDate() - 59)
     expect(range.from.getTime()).toBe(expected.getTime())
+  })
+})
+
+describe("deliveryStatus", () => {
+  const TODAY = "2026-07-29"
+
+  it("marks a campaign delivering when it served on a fresh last collected day", () => {
+    expect(deliveryStatus("2026-07-29", "2026-07-29", TODAY)).toEqual({
+      state: "DELIVERING",
+      lastDay: "2026-07-29",
+    })
+  })
+
+  it("still counts yesterday as delivering, since today's day is usually incomplete", () => {
+    expect(deliveryStatus("2026-07-28", "2026-07-28", TODAY).state).toBe("DELIVERING")
+  })
+
+  it("marks a campaign stopped when its last impression predates the last collected day", () => {
+    expect(deliveryStatus("2026-07-10", "2026-07-28", TODAY)).toEqual({
+      state: "STOPPED",
+      lastDay: "2026-07-10",
+    })
+  })
+
+  it("never claims delivery from stale data: an account 6 days cold reads as stopped", () => {
+    // The whole point of the bug this replaced: every campaign showed "Ativa"
+    // from a default column. A campaign that last served on the newest day we
+    // have is only "delivering" if that day is recent — otherwise all we know is
+    // that it ran until then and the pipeline went quiet.
+    expect(deliveryStatus("2026-07-23", "2026-07-23", TODAY)).toEqual({
+      state: "STOPPED",
+      lastDay: "2026-07-23",
+    })
+  })
+
+  it("reports no data when the campaign never had an impression in the period", () => {
+    expect(deliveryStatus(null, "2026-07-23", TODAY)).toEqual({ state: "NO_DATA", lastDay: null })
+  })
+
+  it("reports no data when nothing at all was collected in the period", () => {
+    expect(deliveryStatus(null, null, TODAY)).toEqual({ state: "NO_DATA", lastDay: null })
+  })
+})
+
+describe("periodRoi", () => {
+  it("returns the percentage return over the amount invested", () => {
+    expect(periodRoi(8369, 2700)).toBeCloseTo(209.96, 2)
+  })
+
+  it("is zero when revenue exactly matches spend", () => {
+    expect(periodRoi(2700, 2700)).toBe(0)
+  })
+
+  it("goes negative when the period sold less than it spent", () => {
+    expect(periodRoi(1350, 2700)).toBe(-50)
+  })
+
+  it("is -100% when nothing sold", () => {
+    expect(periodRoi(0, 2700)).toBe(-100)
+  })
+
+  it("returns null with no spend, since a return over zero is undefined", () => {
+    expect(periodRoi(8369, 0)).toBeNull()
   })
 })

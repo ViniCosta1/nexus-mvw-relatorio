@@ -12,7 +12,9 @@ model Campaign {
   metaCampaignId String   @unique @map("meta_campaign_id")
   name           String
   objective      String?
-  status         String   @default("ACTIVE")
+  // No status column on purpose: the Make scenario sends insights only, never
+  // Meta's effective_status, so a stored value would be a default masquerading
+  // as fact. Delivery state is derived from the insights (see deliveryStatus).
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
