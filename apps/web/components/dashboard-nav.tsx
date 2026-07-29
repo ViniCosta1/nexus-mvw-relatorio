@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Visão Geral", icon: ChartBar },
   { href: "/campanhas", label: "Campanhas", icon: Megaphone },
   { href: "/vendas", label: "Vendas & Clientes", icon: Users },
-  { href: "/social", label: "Social", icon: InstagramLogo },
+  { href: "/social", label: "Instagram", icon: InstagramLogo },
   { href: "/social-selling", label: "Social Selling", icon: Handshake },
   { href: "/producao", label: "Produção", icon: PaintBrush },
   { href: "/custos", label: "Custos", icon: CurrencyDollar },
