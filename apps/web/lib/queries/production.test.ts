@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { groupDeliveriesByMonth, sumDeliveries, type DeliveryRow } from "./production"
+import {
+  filterGroupsByMonth,
+  groupDeliveriesByMonth,
+  sumDeliveries,
+  type DeliveryRow,
+} from "./production"
 
 function row(overrides: Partial<DeliveryRow> = {}): DeliveryRow {
   return {
@@ -61,5 +66,24 @@ describe("groupDeliveriesByMonth", () => {
       row({ id: "m1", key: "logos", label: "Reestilização das logos", kind: "MARCO", month: null, quantity: null }),
     ]
     expect(groupDeliveriesByMonth(rows)).toEqual([])
+  })
+})
+
+describe("filterGroupsByMonth", () => {
+  const groups = [
+    { month: "2026-07", total: 151, items: [] },
+    { month: "2026-06", total: 47, items: [] },
+  ]
+
+  it("returns every month when no month is selected", () => {
+    expect(filterGroupsByMonth(groups, null).map((g) => g.month)).toEqual(["2026-07", "2026-06"])
+  })
+
+  it("returns only the selected month", () => {
+    expect(filterGroupsByMonth(groups, "2026-06")).toEqual([groups[1]])
+  })
+
+  it("returns nothing for a month with no deliveries", () => {
+    expect(filterGroupsByMonth(groups, "2026-05")).toEqual([])
   })
 })

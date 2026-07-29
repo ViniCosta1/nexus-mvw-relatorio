@@ -57,6 +57,14 @@ export function groupDeliveriesByMonth(rows: DeliveryRow[]): DeliveryMonthGroup[
     }))
 }
 
+/** Narrows the monthly groups to one month; `null` keeps all of them. */
+export function filterGroupsByMonth(
+  groups: DeliveryMonthGroup[],
+  month: string | null,
+): DeliveryMonthGroup[] {
+  return month === null ? groups : groups.filter((g) => g.month === month)
+}
+
 export async function getDeliveries(): Promise<DeliveryRow[]> {
   const rows = await prisma.designDelivery.findMany({ orderBy: [{ month: "desc" }, { label: "asc" }] })
 

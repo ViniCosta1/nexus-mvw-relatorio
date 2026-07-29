@@ -1,11 +1,10 @@
 import { Suspense } from "react"
 import { CheckCircle } from "@phosphor-icons/react/dist/ssr"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table"
 import { KpiCard } from "@/components/dashboard/kpi-card"
+import { ProductionByMonth } from "@/components/dashboard/production-by-month"
 import { VendasSkeleton } from "@/components/dashboard/skeletons"
 import type { KpiInfo } from "@/components/dashboard/info-hint"
-import { formatMonthBR } from "@/lib/format"
 import { getDeliveries, groupDeliveriesByMonth, sumDeliveries } from "@/lib/queries/production"
 
 const KPI_INFO: Record<string, KpiInfo> = {
@@ -21,7 +20,7 @@ const KPI_INFO: Record<string, KpiInfo> = {
   },
   total: {
     what: "Soma de artes e vídeos entregues.",
-    example: "Ex.: 198 artes + 20 vídeos = 218 peças.",
+    example: "Ex.: 198 artes + 20 vídeos = 218 produções.",
     why: "Volume total de produção no período.",
   },
 }
@@ -85,40 +84,7 @@ async function ProducaoContent() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Peças por mês</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mês</TableHead>
-                <TableHead>Entrega</TableHead>
-                <TableHead className="text-right">Quantidade</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groups.flatMap((group) => [
-                ...group.items.map((item) => (
-                  <TableRow key={item.key}>
-                    <TableCell className="capitalize whitespace-nowrap">{formatMonthBR(group.month)}</TableCell>
-                    <TableCell>{item.label}</TableCell>
-                    <TableCell className="text-right">{nf(item.quantity ?? 0)}</TableCell>
-                  </TableRow>
-                )),
-                <TableRow key={`${group.month}-total`} className="bg-muted/40">
-                  <TableCell className="capitalize font-medium whitespace-nowrap">
-                    {formatMonthBR(group.month)}
-                  </TableCell>
-                  <TableCell className="font-medium">Total do mês</TableCell>
-                  <TableCell className="text-right font-medium">{nf(group.total)}</TableCell>
-                </TableRow>,
-              ])}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ProductionByMonth groups={groups} />
     </>
   )
 }
