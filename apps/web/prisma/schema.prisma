@@ -94,6 +94,7 @@ model Sale {
 enum SyncSource {
   META
   SHEETS
+  INSTAGRAM
 }
 
 enum SyncStatus {
@@ -112,4 +113,36 @@ model SyncRun {
   errorMessage  String?    @map("error_message")
 
   @@map("sync_runs")
+}
+
+// One row per Instagram profile per calendar day, pushed by a Make scenario.
+// Independent of Campaign/Sale on purpose: nothing attributes organic Instagram
+// activity to an ad campaign or a ticket sale, so there is no relation to draw.
+model InstagramDailyStat {
+  id                String   @id @default(cuid())
+  igUserId          String   @map("ig_user_id")
+  username          String?
+  date              DateTime @db.Date
+  reach             Int      @default(0)
+  views             Int      @default(0)
+  totalInteractions Int      @default(0) @map("total_interactions")
+  accountsEngaged   Int      @default(0) @map("accounts_engaged")
+  likes             Int      @default(0)
+  comments          Int      @default(0)
+  saves             Int      @default(0)
+  shares            Int      @default(0)
+  replies           Int      @default(0)
+  reposts           Int      @default(0)
+  profileLinksTaps  Int      @default(0) @map("profile_links_taps")
+  follows           Int      @default(0)
+  unfollows         Int      @default(0)
+  followsNet        Int      @default(0) @map("follows_net")
+  // Untouched payload as received. Lets us backfill a metric we don't have a
+  // column for yet without re-running the Make scenario.
+  raw               Json
+  syncedAt          DateTime @default(now()) @map("synced_at")
+
+  @@unique([igUserId, date])
+  @@index([date])
+  @@map("instagram_daily_stats")
 }

@@ -13,3 +13,14 @@ export const ACCOUNT_START_DAY = ACCOUNT_START_DATE.toISOString().slice(0, 10)
 export function clampFrom(from: Date): Date {
   return from < ACCOUNT_START_DATE ? ACCOUNT_START_DATE : from
 }
+
+// Daily Instagram collection is driven by a Make scenario that started running
+// on this date. Insights the Graph API still had in its ~30-day retention were
+// backfilled in the first run, so older days exist but were not collected daily
+// — the /social page states this instead of hiding those rows.
+export const SOCIAL_COLLECTION_START_DATE = new Date(
+  `${process.env.SOCIAL_START_DATE ?? "2026-07-29"}T00:00:00.000Z`,
+)
+
+/** YYYY-MM-DD form of SOCIAL_COLLECTION_START_DATE. */
+export const SOCIAL_COLLECTION_START_DAY = SOCIAL_COLLECTION_START_DATE.toISOString().slice(0, 10)
