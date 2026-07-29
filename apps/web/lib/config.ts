@@ -24,3 +24,14 @@ export const SOCIAL_COLLECTION_START_DATE = new Date(
 
 /** YYYY-MM-DD form of SOCIAL_COLLECTION_START_DATE. */
 export const SOCIAL_COLLECTION_START_DAY = SOCIAL_COLLECTION_START_DATE.toISOString().slice(0, 10)
+
+// The day content production for the profile actually began. May and the first
+// three weeks of June are in the exports as the "before" — the /social page
+// marks this date on the daily chart so a rise isn't read as starting earlier
+// than the work did.
+export const SOCIAL_CONTENT_START_DATE = new Date(
+  `${process.env.SOCIAL_CONTENT_START_DATE ?? "2026-06-24"}T00:00:00.000Z`,
+)
+
+/** YYYY-MM-DD form of SOCIAL_CONTENT_START_DATE. */
+export const SOCIAL_CONTENT_START_DAY = SOCIAL_CONTENT_START_DATE.toISOString().slice(0, 10)
