@@ -33,8 +33,7 @@ export default async function ProducaoPage() {
         <h1 className="text-2xl font-semibold">Produção</h1>
         <p className="text-muted-foreground text-sm">Entregas de design e desenvolvimento da gestão</p>
         <p className="text-muted-foreground mt-1 text-sm">
-          Contagem de entregas, lançada manualmente. Não é tráfego nem venda: nenhuma peça aqui é atribuída a uma
-          campanha ou a um ingresso.
+          Contagem de entregas, lançada manualmente.
         </p>
       </div>
 
@@ -65,9 +64,9 @@ async function ProducaoContent() {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiCard title="Artes" value={nf(totals.artes)} hint="Peças estáticas" info={KPI_INFO.artes} />
-        <KpiCard title="Vídeos" value={nf(totals.videos)} hint="Peças em vídeo" info={KPI_INFO.videos} />
-        <KpiCard title="Total de peças" value={nf(totals.total)} hint="Artes + vídeos" info={KPI_INFO.total} />
+        <KpiCard title="Artes" value={nf(totals.artes)} hint="Artes estáticas" info={KPI_INFO.artes} />
+        <KpiCard title="Vídeos" value={nf(totals.videos)} hint="Vídeos" info={KPI_INFO.videos} />
+        <KpiCard title="Total Produzido" value={nf(totals.total)} hint="Artes + vídeos" info={KPI_INFO.total} />
       </div>
 
       {milestones.length > 0 ? (

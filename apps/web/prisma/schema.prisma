@@ -205,3 +205,44 @@ model DesignDelivery {
   @@index([month])
   @@map("design_deliveries")
 }
+
+// Social selling routine, typed in by hand: these are the cadences the operator
+// works to, not numbers any API reports. Stored as a range because that is how
+// the work is actually run — "30 a 60 abordagens por dia", never a single value.
+model SocialSellingMetric {
+  id       String @id @default(cuid())
+  key      String @unique
+  label    String
+  minValue Int    @map("min_value")
+  maxValue Int    @map("max_value")
+  /// What is being counted ("abordagens", "follows", "leads").
+  unit String
+  /// When it applies ("por dia", "na base"). Empty for a plain count.
+  cadence   String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("social_selling_metrics")
+}
+
+enum NoteTone {
+  ALERTA
+  NEUTRO
+  POSITIVO
+}
+
+// Qualitative field notes from the social selling operation — what the numbers
+// alone don't say (lead quality, for instance).
+model SocialSellingNote {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  body      String
+  tone      NoteTone @default(NEUTRO)
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("social_selling_notes")
+}

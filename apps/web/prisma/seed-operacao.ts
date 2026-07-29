@@ -6,7 +6,7 @@
  *
  * Run: cd apps/web && bun run prisma/seed-operacao.ts
  */
-import { CostKind, DeliveryKind, PrismaClient } from "@prisma/client"
+import { CostKind, DeliveryKind, NoteTone, PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
@@ -116,6 +116,49 @@ const DELIVERIES = [
   { key: "videos-2026-07", label: "Vídeos", kind: DeliveryKind.VIDEO, month: month(2026, 7), quantity: 15 },
 ]
 
+const SOCIAL_SELLING_METRICS = [
+  {
+    key: "novas-abordagens",
+    label: "Novas abordagens",
+    minValue: 30,
+    maxValue: 60,
+    unit: "abordagens",
+    cadence: "por dia",
+    position: 1,
+  },
+  {
+    key: "follows",
+    label: "Follows",
+    minValue: 30,
+    maxValue: 30,
+    unit: "follows",
+    cadence: "por dia",
+    position: 2,
+  },
+  {
+    key: "base-recorrente",
+    label: "Base recorrente",
+    minValue: 6,
+    maxValue: 10,
+    unit: "leads",
+    cadence: "na base",
+    position: 3,
+  },
+]
+
+const SOCIAL_SELLING_NOTES = [
+  {
+    key: "leads-desqualificados-criativos",
+    title: "Criativos de alto alcance trouxeram lead desqualificado",
+    body:
+      "Quando soltamos o criativo do Pablo, e quando saiu o vídeo do Licon, vieram muitos leads pedindo dinheiro. " +
+      "Público extremamente desqualificado: muitos nem tinham empresa, a maioria prestador de serviço com renda " +
+      "baixa e CLT.",
+    tone: NoteTone.ALERTA,
+    position: 1,
+  },
+]
+
 async function main() {
   for (const cost of COSTS) {
     await prisma.cost.upsert({
@@ -135,7 +178,26 @@ async function main() {
     })
   }
 
-  console.log(`Seed operação ok: ${COSTS.length} custos, ${DELIVERIES.length} entregas`)
+  for (const metric of SOCIAL_SELLING_METRICS) {
+    await prisma.socialSellingMetric.upsert({
+      where: { key: metric.key },
+      update: metric,
+      create: metric,
+    })
+  }
+
+  for (const note of SOCIAL_SELLING_NOTES) {
+    await prisma.socialSellingNote.upsert({
+      where: { key: note.key },
+      update: note,
+      create: note,
+    })
+  }
+
+  console.log(
+    `Seed operação ok: ${COSTS.length} custos, ${DELIVERIES.length} entregas, ` +
+      `${SOCIAL_SELLING_METRICS.length} métricas e ${SOCIAL_SELLING_NOTES.length} observações de social selling`,
+  )
 }
 
 main()

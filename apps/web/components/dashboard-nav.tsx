@@ -4,7 +4,16 @@ import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { ChartBar, CurrencyDollar, InstagramLogo, List, Megaphone, PaintBrush, Users } from "@phosphor-icons/react"
+import {
+  ChartBar,
+  CurrencyDollar,
+  Handshake,
+  InstagramLogo,
+  List,
+  Megaphone,
+  PaintBrush,
+  Users,
+} from "@phosphor-icons/react"
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
 import { Sheet, SheetContent, SheetTitle } from "@workspace/ui/components/sheet"
@@ -14,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/campanhas", label: "Campanhas", icon: Megaphone },
   { href: "/vendas", label: "Vendas & Clientes", icon: Users },
   { href: "/social", label: "Social", icon: InstagramLogo },
+  { href: "/social-selling", label: "Social Selling", icon: Handshake },
   { href: "/producao", label: "Produção", icon: PaintBrush },
   { href: "/custos", label: "Custos", icon: CurrencyDollar },
 ]
