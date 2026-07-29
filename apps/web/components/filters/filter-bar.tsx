@@ -19,13 +19,17 @@ function toISODate(d: Date) {
  * The from/to a preset would produce: `days` back from today, but never earlier
  * than the account start (traffic began 2026-06-01). Kept identical to the
  * server-side clamp so a preset button lights up when it matches the URL range.
+ * Pages with no floor (Instagram, which the clamp doesn't govern) omit it.
  */
-function presetRange(days: number, todayISO: string, accountStartDay: string) {
+function presetRange(days: number, todayISO: string, accountStartDay?: string) {
   const to = new Date(`${todayISO}T00:00:00.000Z`)
   const fromDate = new Date(to)
   fromDate.setUTCDate(fromDate.getUTCDate() - (days - 1))
   const fromISO = toISODate(fromDate)
-  return { from: fromISO < accountStartDay ? accountStartDay : fromISO, to: todayISO }
+  return {
+    from: accountStartDay && fromISO < accountStartDay ? accountStartDay : fromISO,
+    to: todayISO,
+  }
 }
 
 export function FilterBar({
@@ -33,11 +37,13 @@ export function FilterBar({
   to,
   todayISO,
   accountStartDay,
+  showSearch = true,
 }: {
   from: string
   to: string
   todayISO: string
-  accountStartDay: string
+  accountStartDay?: string
+  showSearch?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -126,18 +132,20 @@ export function FilterBar({
             Aplicar
           </Button>
         </div>
-        <div className="relative w-full sm:w-72">
-          <MagnifyingGlass
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
-            size={16}
-          />
-          <Input
-            placeholder="Buscar vendedor, campanha, criativo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
+        {showSearch ? (
+          <div className="relative w-full sm:w-72">
+            <MagnifyingGlass
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+              size={16}
+            />
+            <Input
+              placeholder="Buscar vendedor, campanha, criativo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   )
