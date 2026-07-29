@@ -1,14 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CaretDown, CaretUp, CaretUpDown, MagnifyingGlass } from "@phosphor-icons/react"
+import { MagnifyingGlass } from "@phosphor-icons/react"
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table"
-import { cn } from "@workspace/ui/lib/utils"
 import { AdDetailDialog, CampaignDetailDialog } from "@/components/dashboard/detail-dialogs"
 import { DeliveryBadge } from "@/components/dashboard/delivery-badge"
+import { SortHeader, useSortedRows } from "@/components/dashboard/sortable"
 import { StrategyBadge } from "@/components/dashboard/strategy-badge"
 import { formatCurrencyBRL } from "@/lib/format"
 import type {
@@ -17,61 +17,6 @@ import type {
   SellerRankingRow,
   StrategyPerformanceRow,
 } from "@/lib/queries/overview"
-
-type SortState<T> = { key: keyof T; dir: "asc" | "desc" } | null
-
-/** Client-side sort over already-loaded rows; first click on a column sorts descending. */
-function useSortedRows<T>(rows: T[]) {
-  const [sort, setSort] = useState<SortState<T>>(null)
-  const sorted = useMemo(() => {
-    if (!sort) return rows
-    const { key, dir } = sort
-    return [...rows].sort((a, b) => {
-      const av = a[key]
-      const bv = b[key]
-      const c =
-        typeof av === "number" && typeof bv === "number"
-          ? av - bv
-          : String(av).localeCompare(String(bv), "pt-BR")
-      return dir === "asc" ? c : -c
-    })
-  }, [rows, sort])
-  const onSort = (key: keyof T) =>
-    setSort((s) => (s && s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }))
-  return { sorted, sort, onSort }
-}
-
-function SortHeader<T>({
-  label,
-  sortKey,
-  sort,
-  onSort,
-  align,
-}: {
-  label: string
-  sortKey: keyof T
-  sort: SortState<T>
-  onSort: (key: keyof T) => void
-  align?: "right"
-}) {
-  const active = sort?.key === sortKey
-  const Icon = !active ? CaretUpDown : sort!.dir === "asc" ? CaretUp : CaretDown
-  return (
-    <TableHead className={align === "right" ? "text-right" : undefined}>
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className={cn(
-          "hover:text-foreground inline-flex items-center gap-1 select-none",
-          align === "right" && "flex-row-reverse",
-        )}
-      >
-        {label}
-        <Icon size={12} weight="bold" className={cn("shrink-0", active ? "opacity-100" : "opacity-40")} />
-      </button>
-    </TableHead>
-  )
-}
 
 export function CampaignRankingTable({ rows }: { rows: CampaignPerformanceRow[] }) {
   const { sorted, sort, onSort } = useSortedRows(rows)

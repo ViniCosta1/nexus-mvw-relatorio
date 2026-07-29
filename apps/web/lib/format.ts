@@ -29,6 +29,15 @@ export function formatDateLongBR(d: Date | string): string {
   return date.toLocaleDateString("pt-BR", { timeZone: "UTC" })
 }
 
+/** Formats a `YYYY-MM` key as "junho de 2026". */
+export function formatMonthBR(month: string): string {
+  return new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
+
 /** Formats a UTC-midnight date in full written form, e.g. "1 de junho de 2026". */
 export function formatDateFullBR(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d

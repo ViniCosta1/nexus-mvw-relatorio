@@ -148,3 +148,60 @@ model InstagramDailyStat {
   @@index([date])
   @@map("instagram_daily_stats")
 }
+
+enum CostKind {
+  MONTHLY
+  ONE_OFF
+}
+
+// Operating costs of the account, typed in by hand — there is no billing
+// integration to sync them from. One row per line item, not per payment: the
+// month range says when it applies, so a recurring cost never needs 12 rows.
+model Cost {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  category String
+  amount   Decimal  @db.Decimal(12, 2)
+  kind     CostKind @default(MONTHLY)
+  // First and last month the cost applies, always the 1st of the month.
+  // A null endMonth means it is still running.
+  startMonth DateTime  @map("start_month") @db.Date
+  endMonth   DateTime? @map("end_month") @db.Date
+  // Marks a cost with a variable part we don't have a number for (a commission,
+  // for example). The totals stay fixed-only and the page says so, instead of
+  // quietly reporting an incomplete figure as if it were the whole cost.
+  hasVariable Boolean @default(false) @map("has_variable")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("costs")
+}
+
+enum DeliveryKind {
+  ARTE
+  VIDEO
+  MARCO
+}
+
+// Design output delivered to the client. Unrelated to ad spend and to sales on
+// purpose: nothing here is attributed to a campaign or a ticket.
+model DesignDelivery {
+  id String @id @default(cuid())
+  /// Stable natural key for the seed to upsert on ("artes-2026-06"). A compound
+  /// unique on (label, month) can't work here: month is null for milestones and
+  /// Postgres/Prisma won't match null in a unique lookup.
+  key   String       @unique
+  label String
+  kind  DeliveryKind
+  /// Month the batch belongs to (1st of the month). Null for one-off milestones
+  /// such as the website or the logo restyle, which don't belong to a count.
+  month DateTime? @db.Date
+  /// How many pieces. Null for milestones, which are a single delivery.
+  quantity  Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([month])
+  @@map("design_deliveries")
+}
