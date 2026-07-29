@@ -14,7 +14,7 @@ export default async function SocialPage() {
         <h1 className="text-2xl font-semibold">Social</h1>
         <p className="text-muted-foreground text-sm">Instagram orgânico — alcance, conteúdo e público</p>
         <p className="text-muted-foreground mt-1 text-sm">
-          Conteúdos do Instagram iniciados em{" "}
+          Conteúdos do Instagram do Grupo Nexus iniciados em{" "}
           <span className="text-foreground font-semibold">{formatDateFullBR(SOCIAL_CONTENT_START_DATE)}</span>. Os dias
           anteriores aparecem como base de comparação — é o perfil antes da produção começar.
         </p>

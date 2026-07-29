@@ -153,7 +153,7 @@ export function InstagramExplorer({
                   x={contentStartDay}
                   stroke="var(--color-chart-4)"
                   strokeDasharray="4 4"
-                  label={{ value: "início dos conteúdos", position: "insideTopLeft", fontSize: 11 }}
+                  label={{ value: "Grupo Nexus - início dos conteúdos", position: "insideTopLeft", fontSize: 11 }}
                 />
               ) : null}
               <Line
